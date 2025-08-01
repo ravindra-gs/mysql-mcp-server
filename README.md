@@ -14,17 +14,25 @@ A Model Context Protocol (MCP) server that provides a single interface to execut
 
 1. Clone this repository
 2. Install dependencies:
+
    ```bash
    npm install
    ```
+
 3. Build the project:
+
    ```bash
    npm run build
    ```
 
 ## Configuration
 
-The server connects to your MySQL database using these environment variables:
+The server connects to your MySQL database using environment variables. You can set these via:
+
+1. **Environment file (.env)** - Recommended for development
+2. **Environment variables** - For production/deployment
+
+### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -36,7 +44,25 @@ The server connects to your MySQL database using these environment variables:
 
 ## Usage
 
-### 1. Set Environment Variables
+### 1. Set Up Configuration
+
+**Option A: Using .env file (Recommended)**
+
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` with your database credentials:
+   ```bash
+   MYSQL_HOST=localhost
+   MYSQL_PORT=3306
+   MYSQL_USER=your_user
+   MYSQL_PASSWORD=your_password
+   MYSQL_DATABASE=your_database
+   ```
+
+**Option B: Using environment variables**
 
 ```bash
 export MYSQL_HOST=localhost
@@ -61,9 +87,11 @@ The server will start and listen for MCP requests on stdio.
 Execute a MySQL query and return the results.
 
 **Parameters:**
+
 - `query` (string, required): The SQL query to execute
 
 **Example queries:**
+
 - `SELECT * FROM users LIMIT 10`
 - `INSERT INTO products (name, price) VALUES ('Widget', 19.99)`
 - `UPDATE users SET status = 'active' WHERE id = 1`
@@ -74,6 +102,7 @@ Execute a MySQL query and return the results.
 If your MySQL database is running in Docker Compose, make sure to:
 
 1. Expose the MySQL port in your `docker-compose.yml`:
+
    ```yaml
    services:
      mysql:
@@ -106,15 +135,18 @@ The server provides comprehensive error handling:
 ## Development
 
 ### Build
+
 ```bash
 npm run build
 ```
 
 ### Project Structure
+
 ```
 ├── src/
 │   └── index.ts          # Main MCP server implementation
 ├── build/                # Compiled JavaScript output
+├── .env.example          # Example environment configuration
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
 └── README.md            # This file

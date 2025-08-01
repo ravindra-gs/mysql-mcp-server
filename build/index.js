@@ -4,6 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 import mysql from "mysql2/promise";
 import { z } from "zod";
+import dotenv from "dotenv";
+dotenv.config();
 const QuerySchema = z.object({
     query: z.string().min(1, "Query cannot be empty"),
 });
