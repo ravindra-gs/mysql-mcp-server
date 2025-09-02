@@ -45,3 +45,8 @@ Write queries are only rejected in the write protection mode.
 - ✅ `INSERT INTO products (name, price) VALUES ('Widget', 19.99)`
 - ❌ `UPDATE users SET status = 'active' WHERE id = 1`
 - ❌ `DELETE FROM temp_table WHERE created_at < NOW() - INTERVAL 1 DAY`
+
+## Start the server
+
+- Default (stdio): npm run build && ./build/index.js
+- HTTP transport: npm run build && ./build/index.js --http

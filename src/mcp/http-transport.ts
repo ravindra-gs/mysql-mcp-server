@@ -1,0 +1,112 @@
+import express from "express";
+import { randomUUID } from "node:crypto";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+
+export async function runHttpTransport(server: McpServer) {
+  const app = express();
+  app.use(express.json());
+  
+  const port = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
+  const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+  const mcpPostHandler = async (req: express.Request, res: express.Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    
+    try {
+      let transport: StreamableHTTPServerTransport;
+      
+      if (sessionId && transports[sessionId]) {
+        transport = transports[sessionId];
+      } else if (!sessionId && isInitializeRequest(req.body)) {
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (sessionId: string) => {
+            console.log(`Session initialized with ID: ${sessionId}`);
+            transports[sessionId] = transport;
+          }
+        });
+        
+        transport.onclose = () => {
+          const sid = transport.sessionId;
+          if (sid && transports[sid]) {
+            console.log(`Transport closed for session ${sid}`);
+            delete transports[sid];
+          }
+        };
+        
+        await server.connect(transport);
+        await transport.handleRequest(req as any, res as any, req.body);
+        return;
+      } else {
+        res.status(400).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: 'Bad Request: No valid session ID provided',
+          },
+          id: null,
+        });
+        return;
+      }
+      
+      await transport.handleRequest(req as any, res as any, req.body);
+    } catch (error) {
+      console.error('Error handling MCP request:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error',
+          },
+          id: null,
+        });
+      }
+    }
+  };
+
+  const mcpGetHandler = async (req: express.Request, res: express.Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).send('Invalid or missing session ID');
+      return;
+    }
+    
+    const transport = transports[sessionId];
+    await transport.handleRequest(req as any, res as any);
+  };
+
+  const mcpDeleteHandler = async (req: express.Request, res: express.Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).send('Invalid or missing session ID');
+      return;
+    }
+    
+    const transport = transports[sessionId];
+    await transport.handleRequest(req as any, res as any);
+  };
+
+  app.post('/mcp', mcpPostHandler);
+  app.get('/mcp', mcpGetHandler);
+  app.delete('/mcp', mcpDeleteHandler);
+
+  app.listen(port, () => {
+    console.error(`MySQL MCP server running on HTTP port ${port}`);
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('Shutting down server...');
+    for (const sessionId in transports) {
+      try {
+        await transports[sessionId].close();
+        delete transports[sessionId];
+      } catch (error) {
+        console.error(`Error closing transport for session ${sessionId}:`, error);
+      }
+    }
+    process.exit(0);
+  });
+}
