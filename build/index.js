@@ -1,92 +1,17 @@
 #!/usr/bin/env node
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
-import mysql from "mysql2/promise";
-import { z } from "zod";
 import dotenv from "dotenv";
+import { QuerySchema, executeQuery } from "./util/mysql.js";
 dotenv.config();
-const QuerySchema = z.object({
-    query: z.string().min(1, "Query cannot be empty"),
-});
-const connectionConfig = {
-    host: process.env.MYSQL_HOST || "localhost",
-    port: parseInt(process.env.MYSQL_PORT || "3306"),
-    user: process.env.MYSQL_USER || "root",
-    password: process.env.MYSQL_PASSWORD || "",
-    database: process.env.MYSQL_DATABASE || "",
-};
-let connection = null;
-async function initializeConnection() {
-    try {
-        connection = await mysql.createConnection(connectionConfig);
-        console.error("Connected to MySQL database");
-    }
-    catch (error) {
-        console.error("Failed to connect to MySQL:", error);
-        throw error;
-    }
-}
-const server = new Server({
+const server = new McpServer({
     name: "mysql-mcp",
     version: "1.0.0",
-}, {
     capabilities: {
         tools: {},
     },
 });
-server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
-    return {
-        tools: [
-            {
-                name: "mysql_query",
-                description: "Execute a MySQL query and return the results",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        query: {
-                            type: "string",
-                            description: "The SQL query to execute",
-                        },
-                    },
-                    required: ["query"],
-                },
-            },
-        ],
-    };
-});
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    if (request.params.name === "mysql_query") {
-        try {
-            const { query } = QuerySchema.parse(request.params.arguments);
-            if (!connection) {
-                await initializeConnection();
-            }
-            const [results] = await connection.execute(query);
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: JSON.stringify(results, null, 2),
-                    },
-                ],
-            };
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `Error executing query: ${errorMessage}`,
-                    },
-                ],
-                isError: true,
-            };
-        }
-    }
-    throw new Error(`Unknown tool: ${request.params.name}`);
-});
+server.tool("mysql_query", "Execute a MySQL query and return the results", QuerySchema.shape, executeQuery);
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);

@@ -18,13 +18,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.1",
+    "@modelcontextprotocol/sdk": "^1.17.4",
     "dotenv": "^17.2.1",
-    "mysql2": "^3.14.3",
+    "mysql2": "^3.14.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.3.0",
     "typescript": "^5.9.2"
   }
 }
